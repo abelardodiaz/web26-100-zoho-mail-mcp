@@ -3,6 +3,70 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: [SemVer](https://semver.org/lang/es/).
 
+## [1.0.0] - 2026-08-14
+
+Migracion del codigo desde `web25-993`, donde se desarrollo. Este repo pasa a ser la
+**fuente de verdad**: el wrapper de produccion ejecuta `src/zoho_mail_mcp.py` desde aqui.
+
+### Added
+
+- **Servidor MCP completo, 11 herramientas** en un archivo con dependencias en linea
+  (PEP 723), ejecutado por `uv run --script`. Una instancia por cuenta, elegida con
+  `ZOHO_MCP_CUENTA`.
+  - Cuenta: `info_cuenta`
+  - Lectura: `listar_carpetas`, `listar_correos`, `buscar_correos`, `leer_correo`,
+    `listar_adjuntos`, `descargar_adjunto`
+  - Envio: `preparar_correo`, `preparar_respuesta`, `enviar_correo`, `listar_pendientes`,
+    `descartar_pendiente`
+- **119 pruebas** sin red, contra dobles de la API (`respx`).
+- `pyproject.toml` con ruff y pytest, plantilla de credenciales en `ejemplos/`, y wrapper
+  de ejemplo en `wrappers/`.
+
+### Decisiones que conviene no re-descubrir
+
+- **Patron preparar -> confirmar.** `preparar_*` deja un borrador y devuelve un id;
+  `enviar_correo` con ese id es lo unico que manda. Existe `pendientes/` en disco porque
+  **Zoho no tiene endpoint para enviar un borrador existente**: se guarda el payload y al
+  confirmar se reenvia sin `mode=draft`. Confirmar **no vuelve a subir los adjuntos**.
+- **Tres reglas que el servidor aplica siempre**, nacidas de errores reales: validar el
+  remitente contra los alias confirmados de la cuenta, componer el nombre para mostrar
+  (la API no lo hace sola), y fijar el `Reply-To` al remitente.
+- **El borrador se mueve a la papelera tras enviar**, no se borra duro: el borrado duro
+  exige `ZohoMail.messages.DELETE`, y no darle ese permiso al servidor es deliberado.
+  La limpieza es **best-effort**: cuando corre, el correo ya salio, y reportar su fallo
+  como fallo de envio llevaria a reintentar y mandar el correo dos veces.
+- **`descargar_adjunto` exige ruta destino explicita.** Un servidor que escribe archivos
+  donde le parezca es un problema esperando a ocurrir.
+- **stdout es el protocolo MCP.** Todo log va a stderr y el `source` del perfil en el
+  wrapper va silenciado; un solo byte de ruido rompe el servidor.
+
+### Hallazgos contra la API real
+
+Varios supuestos razonables resultaron falsos. Estan aqui para que nadie los repita:
+
+- El tamano de un adjunto es **`attachmentSize`**, no `size`. Leerlo de `size` reporta
+  **0 KB siempre, en silencio**.
+- **`content` no devuelve asunto ni remitente**, solo `messageId` y el cuerpo. Para
+  responder a un correo hay que leer **`details`**.
+- Las direcciones llegan **con entidades HTML** (`&lt;`, `&quot;`) y `receivedTime` es
+  epoch en **milisegundos como cadena**.
+- Para borrar: los modos `delete`, `deleteMessage` y `trash` **no existen** (400 *Invalid
+  mode*). El que sirve es `moveMessage`, y el campo destino se llama **`destfolderId`**,
+  todo en minusculas — `destFolderId`, `destinationFolderId` y `toFolderId` dan
+  `EXTRA_KEY_FOUND_IN_JSON`.
+- Un **401 por scope faltante** no se arregla renovando el token; se corta de inmediato.
+- El **indice de busqueda va con retraso**: para verificar algo recien enviado hay que
+  listar la carpeta, no buscar.
+
+### Scopes
+
+```
+ZohoMail.messages.CREATE,ZohoMail.messages.READ,ZohoMail.messages.UPDATE,ZohoMail.accounts.READ,ZohoMail.folders.READ
+```
+
+**No hace falta `ZohoMail.attachments.READ`** (la descarga va con `messages.READ`) **ni
+`ZohoMail.messages.DELETE`** (se mueve a la papelera).
+
 ## [0.1.0] - 2026-08-14
 
 ### Added

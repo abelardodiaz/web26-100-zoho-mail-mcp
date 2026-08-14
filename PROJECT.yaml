@@ -20,8 +20,8 @@
 project:
   code: web26-100
   name: Zoho Mail MCP
-  version: 0.1.0
-  status: development
+  version: 1.0.0
+  status: production
   description: Servidor MCP propio para Zoho Mail con multi-cuenta y acceso a adjuntos
   type: tool
 
@@ -46,10 +46,11 @@ urls:
   repository_mirror: https://gitlab.com/abelardodiaz/web26-100-zoho-mail-mcp
 
 notes: >
-  Andamiaje preparado por claude-996 el 2026-08-14. El servidor existe y esta en
-  produccion fuera de git (MCP zoho-redv6). La migracion del codigo esta bloqueada
-  hasta que el proyecto 993 cierre sus cambios en curso. Ver docs/100-zoho-mail-mcp/
-  en web25-996.
+  Codigo migrado desde web25-993 el 2026-08-14, ya saneado para repo publico. Este
+  repo es la FUENTE DE VERDAD: el wrapper de produccion ejecuta src/zoho_mail_mcp.py
+  desde aqui. 11 herramientas, 119 pruebas en verde, envio real verificado con
+  SPF/DKIM/DMARC en PASS. Historial de desarrollo y decisiones en
+  web25-993/docs/superpowers/ (spec y plan de 10 fases).
 
-updated_at: "2026-08-14T00:00:00"
-updated_by: claude-996
+updated_at: "2026-08-14T16:00:00"
+updated_by: claude-993

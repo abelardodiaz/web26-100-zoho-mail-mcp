@@ -1,0 +1,28 @@
+[project]
+name = "zoho-mail-mcp"
+version = "1.0.0"
+description = "Servidor MCP para Zoho Mail con multi-cuenta y adjuntos"
+requires-python = ">=3.12"
+dependencies = [
+  "mcp>=2.0,<3",
+  "httpx>=0.28,<0.29",
+]
+
+[dependency-groups]
+dev = [
+  "pytest",
+  "pytest-asyncio",
+  "respx",
+  "ruff>=0.8",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
