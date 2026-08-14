@@ -47,3 +47,12 @@ revisa que tu diff no incluya direcciones de correo reales ni rutas de tu maquin
 ## Licencia
 
 Pendiente de definir.
+
+## Repositorios
+
+Este repo se mantiene en dos plataformas, con el mismo contenido en `main`:
+
+- **GitHub (canonico):** https://github.com/abelardodiaz/web26-100-zoho-mail-mcp
+- **GitLab (espejo):** https://gitlab.com/abelardodiaz/web26-100-zoho-mail-mcp
+
+Issues y pull requests, en GitHub.

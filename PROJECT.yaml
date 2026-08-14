@@ -42,7 +42,8 @@ stack:
     - API de Zoho Mail
 
 urls:
-  repository: ""   # pendiente: se llena al crear los remotes
+  repository: https://github.com/abelardodiaz/web26-100-zoho-mail-mcp
+  repository_mirror: https://gitlab.com/abelardodiaz/web26-100-zoho-mail-mcp
 
 notes: >
   Andamiaje preparado por claude-996 el 2026-08-14. El servidor existe y esta en
