@@ -112,7 +112,7 @@ Dos decisiones deliberadas sobre permisos:
 
 | Pieza | Estado |
 |---|---|
-| Servidor MCP | en produccion, 11 herramientas |
+| Servidor MCP | en produccion, 12 herramientas |
 | Codigo en este repo | si — este repo es la fuente de verdad |
 | Pruebas | 119 en verde |
 | Envio real verificado | si, con SPF/DKIM/DMARC en PASS |

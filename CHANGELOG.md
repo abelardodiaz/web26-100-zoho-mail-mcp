@@ -10,7 +10,7 @@ Migracion del codigo desde `web25-993`, donde se desarrollo. Este repo pasa a se
 
 ### Added
 
-- **Servidor MCP completo, 11 herramientas** en un archivo con dependencias en linea
+- **Servidor MCP completo, 12 herramientas** en un archivo con dependencias en linea
   (PEP 723), ejecutado por `uv run --script`. Una instancia por cuenta, elegida con
   `ZOHO_MCP_CUENTA`.
   - Cuenta: `info_cuenta`

@@ -48,7 +48,7 @@ urls:
 notes: >
   Codigo migrado desde web25-993 el 2026-08-14, ya saneado para repo publico. Este
   repo es la FUENTE DE VERDAD: el wrapper de produccion ejecuta src/zoho_mail_mcp.py
-  desde aqui. 11 herramientas, 119 pruebas en verde, envio real verificado con
+  desde aqui. 12 herramientas, 119 pruebas en verde, envio real verificado con
   SPF/DKIM/DMARC en PASS. Historial de desarrollo y decisiones en
   web25-993/docs/superpowers/ (spec y plan de 10 fases).
 
