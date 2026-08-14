@@ -1,0 +1,25 @@
+# credenciales y tokens: NUNCA en el repo
+cuentas/
+pendientes/
+*credentials*.json
+*client_secret*.json
+*.token
+.env
+.env.*
+!.env.example
+
+# notas privadas locales (mapeo real de cuentas y rutas de la maquina)
+PRIVATE-NOTES.md
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.ruff_cache/
+.pytest_cache/
+
+# logs y datos locales
+*.log
+*.jsonl

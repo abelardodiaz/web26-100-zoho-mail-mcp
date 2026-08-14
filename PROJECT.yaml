@@ -1,0 +1,54 @@
+# ============================================================================
+# PROJECT.yaml - Archivo de metadatos del proyecto
+# ============================================================================
+#
+# PARA CLAUDE (IA): Este archivo es leido por el Project Manager (99999).
+#
+# INSTRUCCIONES:
+#   - Si cambias de version, actualiza 'project.version'
+#   - Siempre actualiza 'updated_at' y 'updated_by' al modificar
+#   - 'updated_by' debe ser tu identificador (ej: claude-100)
+#
+# NO MODIFICAR SIN RAZON:
+#   - project.code (identificador unico)
+#   - server.base_path
+#
+# NOTA: repo publico. base_path relativo a proposito - las rutas reales de esta
+# maquina viven en PRIVATE-NOTES.md (gitignored). Mismo criterio que 077 y 091.
+# ============================================================================
+
+project:
+  code: web26-100
+  name: Zoho Mail MCP
+  version: 0.1.0
+  status: development
+  description: Servidor MCP propio para Zoho Mail con multi-cuenta y acceso a adjuntos
+  type: tool
+
+server:
+  location: wsl
+  base_path: .
+
+service:
+  type: none
+  expect_offline: true
+  notes: "servidor MCP stdio, se invoca desde el cliente MCP - no escucha en un puerto"
+
+stack:
+  primary: python
+  framework: mcp
+  components:
+    - MCP stdio
+    - API de Zoho Mail
+
+urls:
+  repository: ""   # pendiente: se llena al crear los remotes
+
+notes: >
+  Andamiaje preparado por claude-996 el 2026-08-14. El servidor existe y esta en
+  produccion fuera de git (MCP zoho-redv6). La migracion del codigo esta bloqueada
+  hasta que el proyecto 993 cierre sus cambios en curso. Ver docs/100-zoho-mail-mcp/
+  en web25-996.
+
+updated_at: "2026-08-14T00:00:00"
+updated_by: claude-996
