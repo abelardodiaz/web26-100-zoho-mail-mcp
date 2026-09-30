@@ -110,7 +110,7 @@ Para varias cuentas: un JSON de credenciales y un wrapper por cada una.
 ./correr-pruebas.sh
 ```
 
-127 pruebas, ninguna toca la red: la API va contra dobles (`respx`). Lo que si toca correo
+135 pruebas, ninguna toca la red: la API va contra dobles (`respx`). Lo que si toca correo
 real se prueba a mano, porque **un correo enviado no se deshace**.
 
 ## Seguridad
@@ -132,7 +132,7 @@ Dos decisiones deliberadas sobre permisos:
 |---|---|
 | Servidor MCP | en produccion, 12 herramientas |
 | Codigo en este repo | si — este repo es la fuente de verdad |
-| Pruebas | 127 en verde |
+| Pruebas | 135 en verde |
 | Envio real verificado | si, con SPF/DKIM/DMARC en PASS |
 | Empaquetado instalable (`uvx`) | pendiente |
 | Publicado en registry MCP | pendiente |

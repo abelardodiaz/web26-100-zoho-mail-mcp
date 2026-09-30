@@ -155,7 +155,7 @@ async def test_enviar_borra_el_pendiente(entorno):
     ident = id_de(salida)
     await z.enviar_correo(ident)
     with pytest.raises(z.ZohoError, match="No hay un pendiente"):
-        z.leer_pendiente(ident)
+        z.leer_pendiente(ident, CUENTA)
 
 
 @respx.mock
@@ -253,7 +253,7 @@ async def test_si_falla_el_borrador_no_queda_pendiente(entorno):
         await z.preparar_correo(
             remitente="remitente@ejemplo.com", para=["c@x.com"], asunto="s", cuerpo="c"
         )
-    assert "Sin correos" in z.listar_pendientes_texto()
+    assert "Sin correos" in z.listar_pendientes_texto(CUENTA)
 
 
 @respx.mock
@@ -265,7 +265,7 @@ async def test_descartar_elimina_el_pendiente(entorno):
     ident = id_de(salida)
     assert "descartado" in (await z.descartar_pendiente(ident)).lower()
     with pytest.raises(z.ZohoError):
-        z.leer_pendiente(ident)
+        z.leer_pendiente(ident, CUENTA)
 
 
 # --- respuestas ------------------------------------------------------------
@@ -381,3 +381,48 @@ async def test_el_pendiente_aparece_en_el_listado(entorno):
     listado = await z.listar_pendientes()
     assert id_de(salida) in listado
     assert "Cotizacion agosto" in listado
+
+
+# --- pendientes de otra cuenta -----------------------------------------------
+#
+# pendientes/ lo comparten todas las instancias. Un pendiente de otra cuenta no
+# se envia ni se descarta desde aqui, y el rechazo ocurre antes de tocar la red.
+
+OTRA = z.Cuenta(
+    nombre="otra",
+    client_id="cid2",
+    client_secret="cs2",
+    refresh_token="rt2",
+    account_id="2000000000000000009",
+)
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_enviar_un_pendiente_ajeno_no_toca_la_red(entorno):
+    ident = z.guardar_pendiente(z.url_enviar(OTRA), {"toAddress": "c@x.com"}, "ajeno", "D-9")
+    with pytest.raises(z.ZohoError, match="otra cuenta"):
+        await z.enviar_correo(ident)
+    assert len(respx.calls) == 0
+    assert z.leer_pendiente(ident, OTRA)["borrador_id"] == "D-9", "debe seguir intacto"
+
+
+@respx.mock(assert_all_mocked=True)
+async def test_descartar_un_pendiente_ajeno_no_lo_borra(entorno):
+    ident = z.guardar_pendiente(z.url_enviar(OTRA), {"toAddress": "c@x.com"}, "ajeno", "D-9")
+    with pytest.raises(z.ZohoError, match="otra cuenta"):
+        await z.descartar_pendiente(ident)
+    assert len(respx.calls) == 0
+    assert z.leer_pendiente(ident, OTRA)["resumen"] == "ajeno"
+
+
+@respx.mock
+async def test_el_listado_de_la_herramienta_oculta_los_ajenos(entorno):
+    rutas_falsas()
+    await z.preparar_correo(
+        remitente="remitente@ejemplo.com", para=["c@x.com"], asunto="propio", cuerpo="c"
+    )
+    z.guardar_pendiente(z.url_enviar(OTRA), {}, "para: ajeno@x.com | ajeno")
+    listado = await z.listar_pendientes()
+    assert "propio" in listado
+    assert "ajeno@x.com" not in listado
+    assert "otras cuentas" in listado

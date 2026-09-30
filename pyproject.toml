@@ -1,6 +1,6 @@
 [project]
 name = "zoho-mail-mcp"
-version = "1.1.0"
+version = "1.1.1"
 description = "Servidor MCP para Zoho Mail con multi-cuenta y adjuntos"
 requires-python = ">=3.12"
 dependencies = [

@@ -96,13 +96,11 @@ docs de otro proyecto**: esa sesion tiene contexto que la tuya no ve.
    El codigo es propio, asi que la segunda opcion esta sobre la mesa — decide con argumentos.
 2. Empaquetado: entry point instalable (`uvx zoho-mail-mcp`) vs script + wrapper.
 3. Licencia (el repo aun no tiene una).
-4. **Pendientes compartidos entre instancias.** `pendientes/` cuelga de `ZOHO_MCP_DIR`, que
-   todas las instancias comparten, y el pendiente no guarda de que cuenta es. Con dos cuentas,
-   `listar_pendientes` mezcla ambas y un id pasado a la otra instancia falla (no manda por la
-   cuenta equivocada: URL de una, token de otra). Parte de la decision 1.
 
 ## Memos enviados
 
 - 2026-09-30 a 602: campo `region` publicado en v1.1.0 (`c701d5a`), con aviso del punto 4.
   Archivo `602-20260930233611-from-claude-100-to-claude-602-campo-region-publicado.md`.
   Su primer `info_cuenta` EU es la primera prueba real contra ese DC.
+- 2026-09-30 a 602: los pendientes compartidos ya estan resueltos en v1.1.1 (el aviso del
+  memo anterior quedo viejo).

@@ -626,7 +626,14 @@ def guardar_pendiente(
     return ident
 
 
-def leer_pendiente(ident: str) -> dict:
+def es_de_cuenta(pendiente: dict, c: Cuenta) -> bool:
+    """El directorio de pendientes lo comparten todas las instancias. La URL
+    guardada ya dice region y accountId, asi que sirve de dueno sin agregar
+    campos, y cubre tambien los pendientes escritos antes de este chequeo."""
+    return str(pendiente.get("url", "")).startswith(f"{c.api}/accounts/{c.account_id}/")
+
+
+def leer_pendiente(ident: str, c: Cuenta) -> dict:
     p = _ruta_pendiente(ident)
     if not p.is_file():
         raise ZohoError(
@@ -639,6 +646,13 @@ def leer_pendiente(ident: str) -> dict:
         raise ZohoError(f"El pendiente '{ident}' esta ilegible: {e}") from e
     if not isinstance(datos, dict) or "payload" not in datos or "url" not in datos:
         raise ZohoError(f"El pendiente '{ident}' esta ilegible: le faltan campos")
+    if not es_de_cuenta(datos, c):
+        # Sin esto, otra instancia lo mandaria con su token contra la URL ajena,
+        # o lo descartaria borrando un borrador que no es suyo.
+        raise ZohoError(
+            f"El pendiente '{ident}' es de otra cuenta, no de '{c.nombre}'. "
+            "Envialo o descartalo desde la instancia de esa cuenta."
+        )
     return datos
 
 
@@ -646,19 +660,29 @@ def borrar_pendiente(ident: str) -> None:
     _ruta_pendiente(ident).unlink(missing_ok=True)
 
 
-def listar_pendientes_texto() -> str:
+def listar_pendientes_texto(c: Cuenta) -> str:
     """Sin esto, un reinicio de Claude Code deja el id fuera de la conversacion
     y el pendiente queda inalcanzable hasta que lo purgue el tiempo."""
     if not DIR_PENDIENTES.is_dir():
         return "Sin correos pendientes."
     lineas = []
+    ajenos = 0
     for p in sorted(DIR_PENDIENTES.glob("*.json")):
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
-            lineas.append(f"[{d.get('id', p.stem)}] {d.get('creado', '')} | {d.get('resumen', '')}")
         except (json.JSONDecodeError, OSError):
             continue  # un archivo roto no debe ocultar los sanos
-    return "\n".join(lineas) if lineas else "Sin correos pendientes."
+        if not isinstance(d, dict):
+            continue
+        if not es_de_cuenta(d, c):
+            ajenos += 1
+            continue
+        lineas.append(f"[{d.get('id', p.stem)}] {d.get('creado', '')} | {d.get('resumen', '')}")
+    salida = "\n".join(lineas) if lineas else "Sin correos pendientes."
+    if ajenos:
+        # Solo el conteo: los resumenes llevan destinatarios de la otra cuenta.
+        salida += f"\n({ajenos} pendiente(s) de otras cuentas, no se muestran)"
+    return salida
 
 
 def purgar_pendientes() -> int:
@@ -678,7 +702,7 @@ def purgar_pendientes() -> int:
 
 # --- 8. Herramientas MCP --------------------------------------------------
 
-SERVIDOR = MCPServer(name="zoho-mail", version="1.1.0")
+SERVIDOR = MCPServer(name="zoho-mail", version="1.1.1")
 
 _CUENTA: Cuenta | None = None
 _CLIENTE: httpx.AsyncClient | None = None
@@ -1120,7 +1144,7 @@ async def preparar_respuesta(
     )
 )
 async def enviar_correo(id_pendiente: str) -> str:
-    p = leer_pendiente(id_pendiente)
+    p = leer_pendiente(id_pendiente, cuenta())
     r = await auth().peticion("POST", p["url"], json=p["payload"])
     datos = r.json().get("data", {}) or {}
     # Se borra despues de que la API confirmo: si el envio falla, el pendiente
@@ -1149,12 +1173,12 @@ async def enviar_correo(id_pendiente: str) -> str:
     )
 )
 async def listar_pendientes() -> str:
-    return listar_pendientes_texto()
+    return listar_pendientes_texto(cuenta())
 
 
 @SERVIDOR.tool(description="Tira a la basura un correo preparado que ya no se va a enviar.")
 async def descartar_pendiente(id_pendiente: str) -> str:
-    p = leer_pendiente(id_pendiente)  # falla claro si no existe
+    p = leer_pendiente(id_pendiente, cuenta())  # falla claro si no existe o es ajeno
     borrar_pendiente(id_pendiente)
     aviso = await _borrar_borrador(p.get("borrador_id", ""))
     if aviso:

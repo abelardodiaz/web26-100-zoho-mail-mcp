@@ -91,7 +91,7 @@ async def preparar():
 async def test_el_id_del_borrador_se_guarda_en_el_pendiente():
     montar()
     ident = await preparar()
-    assert z.leer_pendiente(ident)["borrador_id"] == "DRAFT-1"
+    assert z.leer_pendiente(ident, CUENTA)["borrador_id"] == "DRAFT-1"
 
 
 @respx.mock

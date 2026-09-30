@@ -3,6 +3,27 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: [SemVer](https://semver.org/lang/es/).
 
+## [1.1.1] - 2026-09-30
+
+### Fixed
+
+- **Pendientes aislados por cuenta.** `pendientes/` lo comparten todas las instancias y
+  cada una veia los borradores de las demas: `listar_pendientes` los mezclaba, y
+  `enviar_correo` o `descartar_pendiente` con un id ajeno llegaban a la red (URL de una
+  cuenta, token de otra). Ahora cada instancia solo lista, envia y descarta los suyos; con
+  un id ajeno falla antes de tocar la red y sin borrar nada. El listado dice cuantos hay
+  de otras cuentas, sin mostrar sus destinatarios.
+- 8 pruebas nuevas (135 en total).
+
+### Decisiones que conviene no re-descubrir
+
+- **El dueno se deduce de la URL guardada**, no de un campo nuevo. La URL ya lleva region y
+  `accountId`, asi que no cambia el formato del archivo y cubre los pendientes escritos
+  antes del arreglo. Se compara contra `.../accounts/{id}/` con la barra final, para que la
+  cuenta `111` no reclame los de `1112`.
+- **Se descarto una carpeta por cuenta**: obligaba a migrar los pendientes existentes y no
+  aportaba nada que el filtro no de.
+
 ## [1.1.0] - 2026-09-30
 
 ### Added
