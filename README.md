@@ -62,19 +62,10 @@ Las tres salen de errores reales, no de preferencias de estilo:
 Necesitas [uv](https://docs.astral.sh/uv/) y Python 3.12+. Las dependencias van declaradas
 en el propio script (PEP 723), asi que no hay que instalar nada aparte.
 
-1. **Credenciales.** Crea un Self Client en la consola de API del centro de datos donde
-   vive la cuenta (`api-console.zoho.com`, `api-console.zoho.eu`, ...) y genera un refresh
-   token con estos scopes:
-
-   ```
-   ZohoMail.messages.CREATE,ZohoMail.messages.READ,ZohoMail.messages.UPDATE,ZohoMail.accounts.READ,ZohoMail.folders.READ
-   ```
-
-   Copia `ejemplos/cuenta.example.json` a `~/.zoho-mcp/cuentas/<cuenta>.json`, llenalo y
-   dejalo en modo `600`. **Nunca dentro del repo.**
-
-   **Centro de datos.** Una cuenta Zoho solo se autentica contra su propio centro de datos.
-   Si no esta en el de EE. UU., pon el campo `region` en el JSON:
+1. **Centro de datos.** Una cuenta Zoho solo se autentica contra su propio centro de datos,
+   asi que averigualo primero: todos los pasos siguientes usan su dominio. Se sabe por la
+   URL de la consola de administracion (`mailadmin.zoho.eu` = `eu`). En la tabla, `<dominio>`
+   es lo que se usa abajo:
 
    | `region` | Centro de datos | Dominio |
    |---|---|---|
@@ -87,12 +78,53 @@ en el propio script (PEP 723), asi que no hay que instalar nada aparte.
    | `sa` | Arabia Saudita | `zoho.sa` |
    | `uk` | Reino Unido | `zoho.uk` |
 
-   Se sabe cual es por la URL de la consola de administracion (`mailadmin.zoho.eu` = `eu`).
    Una region que no esta en la tabla se rechaza al arrancar en vez de caer a `com`.
 
-2. **Wrapper.** Copia `wrappers/run-mcp-EJEMPLO.sh`, ajusta las rutas y hazlo ejecutable.
+2. **Self Client.** En `https://api-console.<dominio>` crea un cliente de tipo *Self Client*
+   y anota su `client_id` y `client_secret`.
 
-3. **Registralo** en tu cliente MCP:
+3. **Codigo de autorizacion.** En el mismo Self Client, pestana *Generate Code*, con estos
+   scopes:
+
+   ```
+   ZohoMail.messages.CREATE,ZohoMail.messages.READ,ZohoMail.messages.UPDATE,ZohoMail.accounts.READ,ZohoMail.folders.READ
+   ```
+
+   El codigo **sirve una sola vez y caduca en minutos** (el que elijas en *Time Duration*).
+   Tenlo listo para canjearlo enseguida. Sin `messages.UPDATE` o `folders.READ` el envio
+   funciona igual, pero el borrador queda en Zoho tras enviar y el servidor lo avisa.
+
+4. **Refresh token.** Canjea el codigo contra el **mismo** centro de datos:
+
+   ```bash
+   curl -s -X POST "https://accounts.<dominio>/oauth/v2/token" \
+     -d grant_type=authorization_code \
+     -d client_id="$CLIENT_ID" -d client_secret="$CLIENT_SECRET" -d code="$CODIGO"
+   ```
+
+   La respuesta trae `refresh_token` y `access_token`. Si trae `invalid_code`, el codigo
+   caduco o ya se uso: genera otro. Si trae `invalid_client`, casi siempre es el centro de
+   datos equivocado.
+
+5. **accountId.** Con el `access_token` del paso anterior (dura una hora):
+
+   ```bash
+   curl -s "https://mail.<dominio>/api/accounts" \
+     -H "Authorization: Zoho-oauthtoken $ACCESS_TOKEN"
+   ```
+
+   Es el campo `accountId` dentro de `data`. Si hay varios, el que corresponde al buzon.
+
+6. **JSON de la cuenta.** Copia `ejemplos/cuenta.example.json` a
+   `~/.zoho-mcp/cuentas/<cuenta>.json`, llena los campos (con `region` si no es `com`) y
+   dejalo en modo `600`. **Nunca dentro del repo.**
+
+   Los comandos de arriba dejan el secret y los tokens en el historial del shell. Usa
+   variables como en los ejemplos y borra el historial al terminar.
+
+7. **Wrapper.** Copia `wrappers/run-mcp-EJEMPLO.sh`, ajusta las rutas y hazlo ejecutable.
+
+8. **Registralo** en tu cliente MCP:
 
    ```json
    "zoho-<cuenta>": {
@@ -101,6 +133,9 @@ en el propio script (PEP 723), asi que no hay que instalar nada aparte.
      "args": ["/ruta/al/run-mcp-<cuenta>.sh"]
    }
    ```
+
+9. **Comprueba** con `info_cuenta`: debe mostrar el centro de datos correcto y la lista de
+   remitentes. Si falla, el error dice que revisar.
 
 Para varias cuentas: un JSON de credenciales y un wrapper por cada una.
 

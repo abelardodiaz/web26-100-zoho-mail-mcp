@@ -3,6 +3,14 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: [SemVer](https://semver.org/lang/es/).
 
+## [Unreleased]
+
+### Docs
+
+- README: la instalacion explica paso a paso como obtener las credenciales (Self Client,
+  codigo, canje por refresh token, `accountId`) con el dominio del centro de datos en cada
+  URL, y los errores tipicos del canje (`invalid_code`, `invalid_client`).
+
 ## [1.1.1] - 2026-09-30
 
 ### Fixed
