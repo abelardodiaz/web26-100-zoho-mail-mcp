@@ -104,3 +104,4 @@ docs de otro proyecto**: esa sesion tiene contexto que la tuya no ve.
   Su primer `info_cuenta` EU es la primera prueba real contra ese DC.
 - 2026-09-30 a 602: los pendientes compartidos ya estan resueltos en v1.1.1 (el aviso del
   memo anterior quedo viejo).
+- 2026-09-30 a 602: paso a paso de credenciales EU (Self Client, canje, accountId).
