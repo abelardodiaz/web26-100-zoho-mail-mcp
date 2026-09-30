@@ -11,17 +11,16 @@ las dos, es la decision la que esta mal.
 Hermano para Gmail: `public/web26-091-gmail-mcp-config` (wrappers sobre paquete de terceros).
 Aqui el servidor es codigo propio.
 
-## Estado y bloqueo
+## Estado
 
-El servidor **ya funciona en produccion fuera de este repo**: es el MCP `zoho-redv6`, en
-`/home/wrr/.zoho-mcp/zoho_mail_mcp.py` (WSL), sin git.
+En produccion. El **repo es la fuente de verdad y la unica copia del codigo**: cada instancia
+en produccion es un wrapper fuera del repo que ejecuta `src/zoho_mail_mcp.py` desde esta
+carpeta. Un cambio aqui llega a produccion al reiniciar el cliente MCP, asi que no se deja
+`main` roto. Nunca dos copias del servidor.
 
-**El proyecto 993 esta modificando esa carpeta.** No migres el codigo sin confirmar con el
-usuario que 993 termino. Migrar una foto vieja crea exactamente la desincronizacion que este
-repo existe para evitar.
-
-Cuando se levante el bloqueo: el **repo es la fuente de verdad** y el wrapper
-`run-mcp-redv6.sh` apunta aqui. Nunca dos copias.
+Fuera del repo (en `~/.zoho-mcp/` de WSL) viven solo los datos: JSON de credenciales,
+wrappers y pendientes. Que instancias existen, de que cuentas y con que rutas, esta en
+`PRIVATE-NOTES.md`.
 
 ## Reglas
 
@@ -92,14 +91,15 @@ docs de otro proyecto**: esa sesion tiene contexto que la tuya no ve.
 
 ## Decisiones abiertas
 
-1. Multi-cuenta: HOME por instancia (patron 091) vs flag `--cuenta` dentro del servidor.
-   El codigo es propio, asi que la segunda opcion esta sobre la mesa — decide con argumentos.
-2. Empaquetado: entry point instalable (`uvx zoho-mail-mcp`) vs script + wrapper.
-3. Licencia (el repo aun no tiene una).
+1. Empaquetado: entry point instalable (`uvx zoho-mail-mcp`) vs script + wrapper.
+2. Licencia (el repo aun no tiene una).
+
+Cerrada: **multi-cuenta = una instancia por cuenta**, elegida con `ZOHO_MCP_CUENTA`. Cada
+cuenta trae su `region`, y los pendientes compartidos se filtran por cuenta (v1.1.1).
 
 ## Memos enviados
 
-- 2026-09-30 a 602: campo `region` publicado en v1.1.0 (`c701d5a`), con aviso del punto 4.
+- 2026-09-30 a 602: campo `region` publicado en v1.1.0 (`c701d5a`), con aviso de los pendientes compartidos.
   Archivo `602-20260930233611-from-claude-100-to-claude-602-campo-region-publicado.md`.
   Su primer `info_cuenta` EU es la primera prueba real contra ese DC.
 - 2026-09-30 a 602: los pendientes compartidos ya estan resueltos en v1.1.1 (el aviso del
