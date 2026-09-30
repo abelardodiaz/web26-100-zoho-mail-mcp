@@ -6,7 +6,7 @@ import zoho_mail_mcp as z
 
 
 def test_el_modulo_define_sus_constantes():
-    assert z.BASE == "https://mail.zoho.com/api"
+    assert z.REGION_DEFAULT == "com"
     assert z.DIAS_PURGA_PENDIENTES == 7
 
 

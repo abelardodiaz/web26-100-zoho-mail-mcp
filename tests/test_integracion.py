@@ -13,20 +13,22 @@ import respx
 import zoho_mail_mcp as z
 
 AID = "1000000000000000002"
+CUENTA = z.Cuenta(
+    nombre="prueba",
+    client_id="cid",
+    client_secret="cs",
+    refresh_token="rt",
+    account_id=AID,
+    limite_adjunto_mb=20,
+)
+URL_TOKEN = "https://accounts.zoho.com/oauth/v2/token"
 
 
 @pytest.fixture(autouse=True)
 def entorno(tmp_path, monkeypatch):
     """Doble completo: cuenta falsa, cliente propio, pendientes en tmp."""
     monkeypatch.setattr(z, "DIR_PENDIENTES", tmp_path / "pendientes")
-    cuenta = z.Cuenta(
-        nombre="prueba",
-        client_id="cid",
-        client_secret="cs",
-        refresh_token="rt",
-        account_id=AID,
-        limite_adjunto_mb=20,
-    )
+    cuenta = CUENTA
     cliente = httpx.AsyncClient()
     monkeypatch.setattr(z, "_CUENTA", cuenta)
     monkeypatch.setattr(z, "_CLIENTE", cliente)
@@ -40,10 +42,10 @@ def entorno(tmp_path, monkeypatch):
 
 def rutas_falsas():
     """Devuelve (ruta_subida, ruta_envio) ya montadas en respx."""
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    subida = respx.post(z.url_subir(AID)).mock(
+    subida = respx.post(z.url_subir(CUENTA)).mock(
         return_value=httpx.Response(
             200,
             json={
@@ -60,13 +62,13 @@ def rutas_falsas():
             },
         )
     )
-    envio = respx.post(z.url_enviar(AID)).mock(
+    envio = respx.post(z.url_enviar(CUENTA)).mock(
         return_value=httpx.Response(
             200, json={"status": {"code": 200}, "data": {"messageId": "MSG-1"}}
         )
     )
     # Limpieza del borrador tras enviar (ver test_borrador.py)
-    respx.put(z.url_actualizar(AID)).mock(
+    respx.put(z.url_actualizar(CUENTA)).mock(
         return_value=httpx.Response(200, json={"status": {"code": 200}})
     )
     return subida, envio
@@ -204,10 +206,10 @@ async def test_archivo_inexistente_no_sube_nada(entorno):
 
 @respx.mock
 async def test_fallo_a_mitad_de_subida_aborta_sin_dejar_borrador(entorno):
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    respx.post(z.url_subir(AID)).mock(
+    respx.post(z.url_subir(CUENTA)).mock(
         side_effect=[
             httpx.Response(
                 200,
@@ -225,7 +227,7 @@ async def test_fallo_a_mitad_de_subida_aborta_sin_dejar_borrador(entorno):
             httpx.Response(500, text="boom"),
         ]
     )
-    envio = respx.post(z.url_enviar(AID)).mock(return_value=httpx.Response(200, json={}))
+    envio = respx.post(z.url_enviar(CUENTA)).mock(return_value=httpx.Response(200, json={}))
     (entorno / "a.pdf").write_bytes(b"aaa")
     (entorno / "b.pdf").write_bytes(b"bbb")
 
@@ -243,10 +245,10 @@ async def test_fallo_a_mitad_de_subida_aborta_sin_dejar_borrador(entorno):
 @respx.mock
 async def test_si_falla_el_borrador_no_queda_pendiente(entorno):
     """Un pendiente sin borrador enviaria un correo que nadie reviso."""
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    respx.post(z.url_enviar(AID)).mock(return_value=httpx.Response(500, text="boom"))
+    respx.post(z.url_enviar(CUENTA)).mock(return_value=httpx.Response(500, text="boom"))
     with pytest.raises(z.ZohoError):
         await z.preparar_correo(
             remitente="remitente@ejemplo.com", para=["c@x.com"], asunto="s", cuerpo="c"
@@ -272,10 +274,10 @@ async def test_descartar_elimina_el_pendiente(entorno):
 def montar_original(subject="Cotizacion", de="cliente@ejemplo.com", para=None, cc=None):
     """El ORIGINAL se lee de /details, no de /content: content solo trae
     messageId y el cuerpo (verificado contra la API el 2026-08-14)."""
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    respx.get(z.url_detalles(AID, "77", "MSG-ORIG")).mock(
+    respx.get(z.url_detalles(CUENTA, "77", "MSG-ORIG")).mock(
         return_value=httpx.Response(
             200,
             json={
@@ -289,10 +291,10 @@ def montar_original(subject="Cotizacion", de="cliente@ejemplo.com", para=None, c
             },
         )
     )
-    respx.put(z.url_actualizar(AID)).mock(
+    respx.put(z.url_actualizar(CUENTA)).mock(
         return_value=httpx.Response(200, json={"status": {"code": 200}})
     )
-    return respx.post(z.url_responder(AID, "MSG-ORIG")).mock(
+    return respx.post(z.url_responder(CUENTA, "MSG-ORIG")).mock(
         return_value=httpx.Response(200, json={"data": {"messageId": "MSG-2"}})
     )
 

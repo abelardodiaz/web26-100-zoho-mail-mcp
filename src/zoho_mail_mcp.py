@@ -42,9 +42,21 @@ log = logging.getLogger("zoho-mcp")
 
 # --- 1. Constantes de endpoints -------------------------------------------
 
-BASE = "https://mail.zoho.com/api"
-URL_TOKEN = "https://accounts.zoho.com/oauth/v2/token"
-URL_CUENTAS = f"{BASE}/accounts"
+# Cada cuenta vive en UN centro de datos de Zoho y solo se autentica contra el
+# suyo: un Self Client de api-console.zoho.eu solo canjea tokens en
+# accounts.zoho.eu. Tabla explicita y no f"zoho.{region}" porque Canada rompe el
+# patron (zohocloud.ca). Fuente: zoho.com/accounts/protocol/oauth/multi-dc.html
+DOMINIOS_REGION = {
+    "com": "zoho.com",
+    "eu": "zoho.eu",
+    "in": "zoho.in",
+    "com.au": "zoho.com.au",
+    "jp": "zoho.jp",
+    "ca": "zohocloud.ca",
+    "sa": "zoho.sa",
+    "uk": "zoho.uk",
+}
+REGION_DEFAULT = "com"
 
 TIMEOUT_NORMAL = 30.0
 TIMEOUT_SUBIDA = 180.0
@@ -56,51 +68,51 @@ DIR_PENDIENTES = DIR_BASE / "pendientes"
 TOPE_LISTADO = 100
 
 
-def url_carpetas(aid: str) -> str:
-    return f"{BASE}/accounts/{aid}/folders"
+def url_carpetas(c: Cuenta) -> str:
+    return f"{c.api}/accounts/{c.account_id}/folders"
 
 
-def url_vista(aid: str) -> str:
-    return f"{BASE}/accounts/{aid}/messages/view"
+def url_vista(c: Cuenta) -> str:
+    return f"{c.api}/accounts/{c.account_id}/messages/view"
 
 
-def url_busqueda(aid: str) -> str:
-    return f"{BASE}/accounts/{aid}/messages/search"
+def url_busqueda(c: Cuenta) -> str:
+    return f"{c.api}/accounts/{c.account_id}/messages/search"
 
 
-def url_contenido(aid: str, fid: str, mid: str) -> str:
-    return f"{BASE}/accounts/{aid}/folders/{fid}/messages/{mid}/content"
+def url_contenido(c: Cuenta, fid: str, mid: str) -> str:
+    return f"{c.api}/accounts/{c.account_id}/folders/{fid}/messages/{mid}/content"
 
 
-def url_detalles(aid: str, fid: str, mid: str) -> str:
-    return f"{BASE}/accounts/{aid}/folders/{fid}/messages/{mid}/details"
+def url_detalles(c: Cuenta, fid: str, mid: str) -> str:
+    return f"{c.api}/accounts/{c.account_id}/folders/{fid}/messages/{mid}/details"
 
 
-def url_info_adjuntos(aid: str, fid: str, mid: str) -> str:
-    return f"{BASE}/accounts/{aid}/folders/{fid}/messages/{mid}/attachmentinfo"
+def url_info_adjuntos(c: Cuenta, fid: str, mid: str) -> str:
+    return f"{c.api}/accounts/{c.account_id}/folders/{fid}/messages/{mid}/attachmentinfo"
 
 
-def url_bajar_adjunto(aid: str, fid: str, mid: str, att: str) -> str:
-    return f"{BASE}/accounts/{aid}/folders/{fid}/messages/{mid}/attachments/{att}"
+def url_bajar_adjunto(c: Cuenta, fid: str, mid: str, att: str) -> str:
+    return f"{c.api}/accounts/{c.account_id}/folders/{fid}/messages/{mid}/attachments/{att}"
 
 
-def url_subir(aid: str) -> str:
-    return f"{BASE}/accounts/{aid}/messages/attachments"
+def url_subir(c: Cuenta) -> str:
+    return f"{c.api}/accounts/{c.account_id}/messages/attachments"
 
 
-def url_enviar(aid: str) -> str:
-    return f"{BASE}/accounts/{aid}/messages"
+def url_enviar(c: Cuenta) -> str:
+    return f"{c.api}/accounts/{c.account_id}/messages"
 
 
-def url_responder(aid: str, mid: str) -> str:
-    return f"{BASE}/accounts/{aid}/messages/{mid}"
+def url_responder(c: Cuenta, mid: str) -> str:
+    return f"{c.api}/accounts/{c.account_id}/messages/{mid}"
 
 
-def url_actualizar(aid: str) -> str:
+def url_actualizar(c: Cuenta) -> str:
     """Borrar un mensaje va por aqui. Se eligio sobre
     DELETE /folders/{fid}/messages/{mid} porque NO pide folderId, que sin el
     scope de carpetas no siempre se puede averiguar."""
-    return f"{BASE}/accounts/{aid}/updatemessage"
+    return f"{c.api}/accounts/{c.account_id}/updatemessage"
 
 
 # --- 2. Errores y modelos -------------------------------------------------
@@ -122,6 +134,27 @@ class Cuenta:
     refresh_token: str
     account_id: str
     limite_adjunto_mb: int = 20
+    region: str = REGION_DEFAULT
+
+    @property
+    def dominio(self) -> str:
+        return DOMINIOS_REGION[self.region]
+
+    @property
+    def api(self) -> str:
+        return f"https://mail.{self.dominio}/api"
+
+    @property
+    def url_token(self) -> str:
+        return f"https://accounts.{self.dominio}/oauth/v2/token"
+
+    @property
+    def url_cuentas(self) -> str:
+        return f"{self.api}/accounts"
+
+    @property
+    def consola(self) -> str:
+        return f"api-console.{self.dominio}"
 
 
 @dataclass(frozen=True)
@@ -153,6 +186,13 @@ def cargar_cuenta(ruta: str | None = None) -> Cuenta:
     ]
     if faltan:
         raise ZohoError(f"Al archivo {p} le faltan campos: {', '.join(faltan)}")
+    region = str(datos.get("region") or REGION_DEFAULT).strip().lower()
+    if region not in DOMINIOS_REGION:
+        # Se rechaza en vez de caer a .com: una cuenta EU contra .com falla con
+        # un invalid_client que no dice nada de regiones.
+        raise ZohoError(
+            f"Region '{region}' desconocida en {p}. Validas: {', '.join(DOMINIOS_REGION)}"
+        )
     return Cuenta(
         nombre=datos["nombre"],
         client_id=datos["client_id"],
@@ -160,6 +200,7 @@ def cargar_cuenta(ruta: str | None = None) -> Cuenta:
         refresh_token=datos["refresh_token"],
         account_id=str(datos["account_id"]),
         limite_adjunto_mb=int(datos.get("limite_adjunto_mb", 20)),
+        region=region,
     )
 
 
@@ -180,7 +221,7 @@ class Auth:
         if not forzar and self._token and time.monotonic() < self._expira - 60:
             return self._token
         r = await self._cliente.post(
-            URL_TOKEN,
+            self.cuenta.url_token,
             data={
                 "grant_type": "refresh_token",
                 "client_id": self.cuenta.client_id,
@@ -194,7 +235,7 @@ class Auth:
             error = str(datos.get("error", f"HTTP {r.status_code}"))
             self._muerto = (
                 f"Zoho rechazo el refresh token de la cuenta '{self.cuenta.nombre}' ({error}). "
-                "Regeneralo en api-console.zoho.com con los scopes ZohoMail.messages.CREATE, "
+                f"Regeneralo en {self.cuenta.consola} con los scopes ZohoMail.messages.CREATE, "
                 "ZohoMail.messages.READ y ZohoMail.accounts.READ, y actualiza el JSON de "
                 "credenciales. No se reintentara en esta sesion."
             )
@@ -529,7 +570,7 @@ def buscar_carpeta(nombre: str, carpetas: list[dict]) -> str:
     raise ZohoError(f"No existe la carpeta '{nombre}'. Disponibles: {disponibles}")
 
 
-def explicar_scope_carpetas(error: Exception) -> str | None:
+def explicar_scope_carpetas(error: Exception, consola: str) -> str | None:
     """Traduce el INVALID_OAUTHSCOPE de /folders a algo que se pueda accionar.
     Devuelve None si el error es otro, para no disfrazar fallos distintos."""
     if "INVALID_OAUTHSCOPE" not in str(error):
@@ -538,7 +579,7 @@ def explicar_scope_carpetas(error: Exception) -> str | None:
         "El refresh token de esta cuenta no incluye el scope ZohoMail.folders.READ, "
         "asi que no se pueden listar las carpetas por nombre. Dos salidas: "
         "(a) pasar el folderId numerico directamente a listar_correos, que si funciona; "
-        "(b) regenerar el refresh token en api-console.zoho.com agregando "
+        f"(b) regenerar el refresh token en {consola} agregando "
         "ZohoMail.folders.READ a los scopes."
     )
 
@@ -637,7 +678,7 @@ def purgar_pendientes() -> int:
 
 # --- 8. Herramientas MCP --------------------------------------------------
 
-SERVIDOR = MCPServer(name="zoho-mail", version="1.0.0")
+SERVIDOR = MCPServer(name="zoho-mail", version="1.1.0")
 
 _CUENTA: Cuenta | None = None
 _CLIENTE: httpx.AsyncClient | None = None
@@ -664,7 +705,7 @@ async def remitentes() -> list[Remitente]:
     """Alias confirmados de la cuenta. Se piden una vez por proceso."""
     global _REMITENTES
     if _REMITENTES is None:
-        r = await auth().peticion("GET", URL_CUENTAS)
+        r = await auth().peticion("GET", cuenta().url_cuentas)
         cuentas = r.json().get("data", []) or []
         mia = next(
             (c for c in cuentas if str(c.get("accountId")) == cuenta().account_id),
@@ -690,6 +731,7 @@ async def info_cuenta() -> str:
     c = cuenta()
     lineas = [
         f"Cuenta: {c.nombre} (accountId {c.account_id})",
+        f"Centro de datos: {c.dominio}",
         f"Limite de adjunto: {c.limite_adjunto_mb} MB",
         "Remitentes disponibles:",
     ]
@@ -701,9 +743,9 @@ async def info_cuenta() -> str:
 
 async def _carpetas() -> list[dict]:
     try:
-        r = await auth().peticion("GET", url_carpetas(cuenta().account_id))
+        r = await auth().peticion("GET", url_carpetas(cuenta()))
     except ZohoError as e:
-        explicacion = explicar_scope_carpetas(e)
+        explicacion = explicar_scope_carpetas(e, cuenta().consola)
         raise ZohoError(explicacion) from e if explicacion else e
     return r.json().get("data", []) or []
 
@@ -746,7 +788,7 @@ async def listar_correos(carpeta: str = "", limite: int = 20) -> str:
     params: dict[str, object] = {"limit": _tope(limite), "start": 1}
     if str(carpeta).strip():
         params["folderId"] = await _resolver_carpeta(carpeta)
-    r = await auth().peticion("GET", url_vista(cuenta().account_id), params=params)
+    r = await auth().peticion("GET", url_vista(cuenta()), params=params)
     return formatear_lista(r.json().get("data", []) or [])
 
 
@@ -759,7 +801,7 @@ async def listar_correos(carpeta: str = "", limite: int = 20) -> str:
 async def buscar_correos(consulta: str, limite: int = 20) -> str:
     r = await auth().peticion(
         "GET",
-        url_busqueda(cuenta().account_id),
+        url_busqueda(cuenta()),
         params={"searchKey": consulta, "limit": _tope(limite), "start": 1},
     )
     return formatear_lista(r.json().get("data", []) or [])
@@ -774,9 +816,9 @@ async def buscar_correos(consulta: str, limite: int = 20) -> str:
 )
 async def leer_correo(referencia: str, crudo: bool = False) -> str:
     fid, mid = parse_ref(referencia)
-    aid = cuenta().account_id
-    det = (await auth().peticion("GET", url_detalles(aid, fid, mid))).json().get("data", {}) or {}
-    cont = (await auth().peticion("GET", url_contenido(aid, fid, mid))).json().get("data", {}) or {}
+    c = cuenta()
+    det = (await auth().peticion("GET", url_detalles(c, fid, mid))).json().get("data", {}) or {}
+    cont = (await auth().peticion("GET", url_contenido(c, fid, mid))).json().get("data", {}) or {}
     cabecera = [
         f"De:      {_limpio(det.get('fromAddress'))}",
         f"Para:    {_limpio(det.get('toAddress'))}",
@@ -798,7 +840,7 @@ async def leer_correo(referencia: str, crudo: bool = False) -> str:
 )
 async def listar_adjuntos(referencia: str) -> str:
     fid, mid = parse_ref(referencia)
-    r = await auth().peticion("GET", url_info_adjuntos(cuenta().account_id, fid, mid))
+    r = await auth().peticion("GET", url_info_adjuntos(cuenta(), fid, mid))
     return formatear_adjuntos(r.json().get("data", {}) or {})
 
 
@@ -822,7 +864,7 @@ async def descargar_adjunto(
     destino = validar_destino(ruta_destino, sobrescribir=sobrescribir)
     r = await auth().peticion(
         "GET",
-        url_bajar_adjunto(cuenta().account_id, fid, mid, str(id_adjunto).strip()),
+        url_bajar_adjunto(cuenta(), fid, mid, str(id_adjunto).strip()),
         timeout=TIMEOUT_SUBIDA,
     )
     datos = r.content
@@ -844,7 +886,7 @@ async def _subir_adjuntos(archivos: list[tuple[Path, int]]) -> list[AdjuntoSubid
         try:
             r = await auth().peticion(
                 "POST",
-                url_subir(cuenta().account_id),
+                url_subir(cuenta()),
                 params={"uploadType": "multipart"},
                 files={"attach": (p.name, p.read_bytes(), tipo)},
                 timeout=TIMEOUT_SUBIDA,
@@ -923,7 +965,7 @@ async def preparar_correo(
         formato=formato,
         adjuntos=subidos,
     )
-    url = url_enviar(cuenta().account_id)
+    url = url_enviar(cuenta())
     # El borrador primero: si falla, no queda un pendiente que enviaria un
     # correo que nadie llego a revisar.
     r = await auth().peticion("POST", url, json={**payload, "mode": "draft"})
@@ -976,7 +1018,7 @@ async def _borrar_borrador(message_id: str) -> str | None:
         papelera = await carpeta_papelera()
         await auth().peticion(
             "PUT",
-            url_actualizar(cuenta().account_id),
+            url_actualizar(cuenta()),
             json={
                 "mode": "moveMessage",
                 "messageId": [str(message_id)],
@@ -1028,7 +1070,7 @@ async def preparar_respuesta(
     rem = resolver_remitente(remitente, await remitentes())
     # details, NO content: content solo trae messageId y el cuerpo, sin asunto
     # ni remitente (verificado contra la API el 2026-08-14).
-    r = await auth().peticion("GET", url_detalles(cuenta().account_id, fid, mid))
+    r = await auth().peticion("GET", url_detalles(cuenta(), fid, mid))
     orig = r.json().get("data", {}) or {}
 
     destinos = _correos_de(orig.get("fromAddress"))
@@ -1061,7 +1103,7 @@ async def preparar_respuesta(
     )
     payload["action"] = "replyall" if responder_a_todos else "reply"
 
-    url = url_responder(cuenta().account_id, mid)
+    url = url_responder(cuenta(), mid)
     r = await auth().peticion("POST", url, json={**payload, "mode": "draft"})
     borrador_id = str((r.json().get("data") or {}).get("messageId") or "")
     ident = guardar_pendiente(

@@ -4,6 +4,9 @@ import respx
 
 import zoho_mail_mcp as z
 
+URL_TOKEN = "https://accounts.zoho.com/oauth/v2/token"
+URL_CUENTAS = "https://mail.zoho.com/api/accounts"
+
 
 def cuenta_falsa() -> "z.Cuenta":
     return z.Cuenta(
@@ -18,7 +21,7 @@ def cuenta_falsa() -> "z.Cuenta":
 
 @respx.mock
 async def test_token_se_pide_una_vez_y_se_cachea():
-    ruta = respx.post(z.URL_TOKEN).mock(
+    ruta = respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T1", "expires_in": 3600})
     )
     async with httpx.AsyncClient() as cliente:
@@ -30,7 +33,7 @@ async def test_token_se_pide_una_vez_y_se_cachea():
 
 @respx.mock
 async def test_401_renueva_una_vez_y_reintenta():
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         side_effect=[
             httpx.Response(200, json={"access_token": "VIEJO", "expires_in": 3600}),
             httpx.Response(200, json={"access_token": "NUEVO", "expires_in": 3600}),
@@ -44,7 +47,7 @@ async def test_401_renueva_una_vez_y_reintenta():
     )
     async with httpx.AsyncClient() as cliente:
         auth = z.Auth(cuenta_falsa(), cliente)
-        r = await auth.peticion("GET", z.URL_CUENTAS)
+        r = await auth.peticion("GET", URL_CUENTAS)
     assert r.status_code == 200
     assert llamadas.call_count == 2
     assert llamadas.calls[1].request.headers["Authorization"] == "Zoho-oauthtoken NUEVO"
@@ -52,7 +55,7 @@ async def test_401_renueva_una_vez_y_reintenta():
 
 @respx.mock
 async def test_segundo_401_se_rinde():
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
     respx.get("https://mail.zoho.com/api/accounts").mock(
@@ -61,12 +64,12 @@ async def test_segundo_401_se_rinde():
     async with httpx.AsyncClient() as cliente:
         auth = z.Auth(cuenta_falsa(), cliente)
         with pytest.raises(z.ZohoError, match="401"):
-            await auth.peticion("GET", z.URL_CUENTAS)
+            await auth.peticion("GET", URL_CUENTAS)
 
 
 @respx.mock
 async def test_refresh_token_invalido_no_se_reintenta_jamas():
-    ruta = respx.post(z.URL_TOKEN).mock(
+    ruta = respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"error": "invalid_grant"})
     )
     async with httpx.AsyncClient() as cliente:
@@ -94,7 +97,7 @@ def test_alias_se_extraen_de_send_mail_details():
 async def test_scope_invalido_no_gasta_una_renovacion_de_token():
     """Observado el 2026-08-14 contra /folders: un 401 por scope faltante
     disparaba renovar el token y reintentar, y el reintento no puede arreglarlo."""
-    token = respx.post(z.URL_TOKEN).mock(
+    token = respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
     llamadas = respx.get("https://mail.zoho.com/api/accounts").mock(
@@ -105,7 +108,7 @@ async def test_scope_invalido_no_gasta_una_renovacion_de_token():
     async with httpx.AsyncClient() as cliente:
         auth = z.Auth(cuenta_falsa(), cliente)
         with pytest.raises(z.ZohoError, match="INVALID_OAUTHSCOPE"):
-            await auth.peticion("GET", z.URL_CUENTAS)
+            await auth.peticion("GET", URL_CUENTAS)
     assert llamadas.call_count == 1, "no debe reintentar"
     assert token.call_count == 1, "no debe renovar el token"
 

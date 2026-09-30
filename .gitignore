@@ -23,3 +23,9 @@ venv/
 # logs y datos locales
 *.log
 *.jsonl
+
+# memos de la flota: traen correos y rutas reales. La auditoria se queda en local
+docs/incoming/*
+!docs/incoming/README.md
+docs/procesados/*
+!docs/procesados/.gitkeep

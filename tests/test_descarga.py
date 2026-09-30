@@ -16,7 +16,8 @@ CUENTA = z.Cuenta(
 )
 
 REF = "77/1234"
-URL_ADJUNTO = z.url_bajar_adjunto("999", "77", "1234", "abc")
+URL_TOKEN = "https://accounts.zoho.com/oauth/v2/token"
+URL_ADJUNTO = z.url_bajar_adjunto(CUENTA, "77", "1234", "abc")
 
 
 @pytest.fixture
@@ -27,7 +28,7 @@ def servidor_falso(monkeypatch):
     monkeypatch.setattr(z, "_CUENTA", CUENTA)
     monkeypatch.setattr(z, "_CLIENTE", cliente)
     monkeypatch.setattr(z, "_AUTH", auth)
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
     return auth

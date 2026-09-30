@@ -3,6 +3,30 @@
 Formato: [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 Versionado: [SemVer](https://semver.org/lang/es/).
 
+## [1.1.0] - 2026-09-30
+
+### Added
+
+- **Centro de datos por cuenta.** Campo opcional `region` en el JSON de credenciales
+  (`com`, `eu`, `in`, `com.au`, `jp`, `ca`, `sa`, `uk`; default `com`). De el salen el
+  endpoint de token, el de la API y la consola que citan los mensajes de error. Pedido por
+  web26-602 para una cuenta alojada en EU. `info_cuenta` muestra el centro de datos.
+- 8 pruebas en `tests/test_region.py` (127 en total).
+
+### Changed
+
+- Los `url_*` reciben la `Cuenta` en vez del `account_id`, y desaparecen las constantes
+  `BASE`, `URL_TOKEN` y `URL_CUENTAS`: con una base global era posible armar una URL de
+  `.com` para una cuenta EU sin que nada lo notara.
+
+### Decisiones que conviene no re-descubrir
+
+- **Tabla explicita, no `f"zoho.{region}"`.** Canada rompe el patron: es `zohocloud.ca`.
+- **Region desconocida = error al arrancar.** Caer a `com` en silencio produce un
+  `invalid_client` que no menciona regiones. Ademas el `client_secret` viaja al endpoint
+  de token, asi que la region nunca debe poder apuntar a un host arbitrario.
+- **Los pendientes guardan la URL completa**, asi que ya quedan atados a su region.
+
 ## [1.0.0] - 2026-08-14
 
 Migracion del codigo desde `web25-993`, donde se desarrollo. Este repo pasa a ser la

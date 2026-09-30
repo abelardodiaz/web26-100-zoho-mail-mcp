@@ -14,19 +14,21 @@ import respx
 import zoho_mail_mcp as z
 
 AID = "1000000000000000002"
+CUENTA = z.Cuenta(
+    nombre="prueba",
+    client_id="cid",
+    client_secret="cs",
+    refresh_token="rt",
+    account_id=AID,
+    limite_adjunto_mb=20,
+)
+URL_TOKEN = "https://accounts.zoho.com/oauth/v2/token"
 
 
 @pytest.fixture(autouse=True)
 def entorno(tmp_path, monkeypatch):
     monkeypatch.setattr(z, "DIR_PENDIENTES", tmp_path / "pendientes")
-    cuenta = z.Cuenta(
-        nombre="prueba",
-        client_id="cid",
-        client_secret="cs",
-        refresh_token="rt",
-        account_id=AID,
-        limite_adjunto_mb=20,
-    )
+    cuenta = CUENTA
     cliente = httpx.AsyncClient()
     monkeypatch.setattr(z, "_CUENTA", cuenta)
     monkeypatch.setattr(z, "_CLIENTE", cliente)
@@ -42,11 +44,11 @@ TRASH = "1000000000000000024"
 
 
 def montar(borrado_ok=True):
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
     # La papelera se ubica por nombre; su id no se puede clavar en el codigo.
-    respx.get(z.url_carpetas(AID)).mock(
+    respx.get(z.url_carpetas(CUENTA)).mock(
         return_value=httpx.Response(
             200,
             json={
@@ -57,7 +59,7 @@ def montar(borrado_ok=True):
             },
         )
     )
-    envio = respx.post(z.url_enviar(AID)).mock(
+    envio = respx.post(z.url_enviar(CUENTA)).mock(
         side_effect=[
             # 1. creacion del borrador: devuelve SU messageId
             httpx.Response(200, json={"data": {"mode": "draft", "messageId": "DRAFT-1"}}),
@@ -66,11 +68,11 @@ def montar(borrado_ok=True):
         ]
     )
     if borrado_ok:
-        borrado = respx.put(z.url_actualizar(AID)).mock(
+        borrado = respx.put(z.url_actualizar(CUENTA)).mock(
             return_value=httpx.Response(200, json={"status": {"code": 200}})
         )
     else:
-        borrado = respx.put(z.url_actualizar(AID)).mock(
+        borrado = respx.put(z.url_actualizar(CUENTA)).mock(
             return_value=httpx.Response(
                 401, text='[2, {"errorCode":"INVALID_OAUTHSCOPE","status":"401"}]'
             )
@@ -112,10 +114,10 @@ async def test_al_enviar_el_borrador_se_va_a_la_papelera():
 
 @respx.mock
 async def test_la_papelera_se_busca_una_sola_vez():
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    carpetas = respx.get(z.url_carpetas(AID)).mock(
+    carpetas = respx.get(z.url_carpetas(CUENTA)).mock(
         return_value=httpx.Response(
             200, json={"data": [{"folderId": TRASH, "folderName": "Trash"}]}
         )
@@ -128,10 +130,10 @@ async def test_la_papelera_se_busca_una_sola_vez():
 @respx.mock
 async def test_la_papelera_se_busca_por_nombre_no_por_id_fijo():
     """Otra cuenta puede tener otros ids, o la carpeta en español."""
-    respx.post(z.URL_TOKEN).mock(
+    respx.post(URL_TOKEN).mock(
         return_value=httpx.Response(200, json={"access_token": "T", "expires_in": 3600})
     )
-    respx.get(z.url_carpetas(AID)).mock(
+    respx.get(z.url_carpetas(CUENTA)).mock(
         return_value=httpx.Response(
             200, json={"data": [{"folderId": "999", "folderName": "Papelera"}]}
         )
@@ -166,7 +168,7 @@ async def test_un_pendiente_viejo_sin_borrador_id_no_truena():
     """Los pendientes guardados antes de esta version no traen el campo.
     Deben enviarse igual, sin intentar borrar un borrador que no se conoce."""
     _, borrado = montar()
-    ident = z.guardar_pendiente(z.url_enviar(AID), {"toAddress": "c@x.com"}, "viejo")
+    ident = z.guardar_pendiente(z.url_enviar(CUENTA), {"toAddress": "c@x.com"}, "viejo")
 
     salida = await z.enviar_correo(ident)
 

@@ -136,14 +136,14 @@ def test_error_de_scope_se_traduce_a_instruccion_accionable():
     """INVALID_OAUTHSCOPE es el error real observado el 2026-08-14."""
     err = z.ZohoError("Zoho respondio 401 en GET .../folders: "
                       '[2, {"errorCode":"INVALID_OAUTHSCOPE","status":"401"}]')
-    traducido = z.explicar_scope_carpetas(err)
+    traducido = z.explicar_scope_carpetas(err, "api-console.zoho.com")
     assert "ZohoMail.folders.READ" in traducido
     assert "folderId" in traducido
 
 
 def test_otro_error_no_se_disfraza_de_problema_de_scope():
     err = z.ZohoError("Zoho respondio 500 en GET .../folders: boom")
-    assert z.explicar_scope_carpetas(err) is None
+    assert z.explicar_scope_carpetas(err, "api-console.zoho.com") is None
 
 
 # --- HTML a texto ----------------------------------------------------------

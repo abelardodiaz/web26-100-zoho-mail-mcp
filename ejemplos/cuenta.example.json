@@ -4,5 +4,6 @@
   "client_secret": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "refresh_token": "1000.XXXXXXXXXXXXXXXXXXXXXXXXXXXX.XXXXXXXXXXXXXXXXXXXXXXXXXXXX",
   "account_id": "1000000000000000002",
+  "region": "com",
   "limite_adjunto_mb": 20
 }
