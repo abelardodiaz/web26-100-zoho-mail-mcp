@@ -105,3 +105,5 @@ cuenta trae su `region`, y los pendientes compartidos se filtran por cuenta (v1.
 - 2026-09-30 a 602: los pendientes compartidos ya estan resueltos en v1.1.1 (el aviso del
   memo anterior quedo viejo).
 - 2026-09-30 a 602: paso a paso de credenciales EU (Self Client, canje, accountId).
+  602 dejo su instancia lista sin mandar memo de vuelta; 100 la verifico en vivo contra el
+  DC EU y quedo funcionando. Circuito con 602 cerrado.

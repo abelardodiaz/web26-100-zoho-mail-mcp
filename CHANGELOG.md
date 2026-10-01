@@ -5,6 +5,12 @@ Versionado: [SemVer](https://semver.org/lang/es/).
 
 ## [Unreleased]
 
+### Verificado
+
+- **`region: eu` contra la API real** (2026-09-30), con la primera cuenta EU en produccion:
+  token 200 en `accounts.zoho.eu`, `GET mail.zoho.eu/api/accounts` 200, remitentes
+  resueltos. Hasta aqui el soporte EU solo estaba cubierto por pruebas sin red.
+
 ### Docs
 
 - README: la instalacion explica paso a paso como obtener las credenciales (Self Client,
